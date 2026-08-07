@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Helpdesk - Gerenciador de Tickets</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- TELA DE AUTENTICAÇÃO (LOGIN / REGISTRO) -->
+  <div id="auth-screen" class="auth-wrapper">
+    <div class="auth-card">
+      <div class="auth-header">
+        <div class="logo-icon">🎫</div>
+        <h2>Helpdesk Tickets</h2>
+        <p>Acesse sua conta ou registre-se para abrir chamados</p>
+      </div>
+
+      <div class="auth-tabs">
+        <button id="tab-login-btn" class="active" onclick="switchAuthTab('login')">Entrar</button>
+        <button id="tab-register-btn" onclick="switchAuthTab('register')">Cadastrar</button>
+      </div>
+
+      <!-- FORM LOGIN -->
+      <form id="login-form" class="auth-form">
+        <div class="form-group">
+          <label for="login-email">E-mail</label>
+          <input type="email" id="login-email" required placeholder="seu@email.com">
+        </div>
+        <div class="form-group">
+          <label for="login-password">Senha</label>
+          <input type="password" id="login-password" required placeholder="••••••••">
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Entrar no Sistema</button>
+        <div class="demo-seed-info">
+          <small>💡 <b>Admin Padrão:</b> admin@ticket.com / admin123</small>
+        </div>
+      </form>
+
+      <!-- FORM REGISTRO -->
+      <form id="register-form" class="auth-form hidden">
+        <div class="form-group">
+          <label for="reg-name">Nome Completo</label>
+          <input type="text" id="reg-name" required placeholder="Seu Nome">
+        </div>
+        <div class="form-group">
+          <label for="reg-email">E-mail</label>
+          <input type="email" id="reg-email" required placeholder="seu@email.com">
+        </div>
+        <div class="form-group">
+          <label for="reg-password">Senha</label>
+          <input type="password" id="reg-password" required placeholder="••••••••">
+        </div>
+        <div class="form-group">
+          <label for="reg-role">Perfil de Usuário</label>
+          <select id="reg-role">
+            <option value="cliente">Cliente (Abrir meus chamados)</option>
+            <option value="tecnico">Técnico (Atender chamados)</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-success btn-block">Criar Minha Conta</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- APLICAÇÃO PRINCIPAL (DASHBOARD SPA) -->
+  <div id="app-screen" class="app-layout hidden">
+    <!-- HEADER -->
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-icon">🎫</span>
+        <h1>Helpdesk</h1>
+      </div>
+
+      <nav class="nav-links">
+        <button class="nav-item active" id="nav-tickets" onclick="switchView('tickets')">Tickets</button>
+        <button class="nav-item hidden" id="nav-reports" onclick="switchView('reports')">Relatórios</button>
+        <button class="nav-item hidden" id="nav-users" onclick="switchView('users')">Usuários</button>
+      </nav>
+
+      <div class="header-actions">
+        <!-- NOTIFICAÇÕES -->
+        <div class="notif-dropdown-wrapper">
+          <button class="icon-btn" id="notif-btn" onclick="toggleNotifDropdown()">
+            🔔 <span id="notif-badge" class="badge-count hidden">0</span>
+          </button>
+          <div id="notif-dropdown" class="notif-dropdown hidden">
+            <div class="notif-header">
+              <span>Notificações</span>
+              <button class="link-btn" onclick="markAllNotifsRead()">Marcar todas como lidas</button>
+            </div>
+            <div id="notif-list" class="notif-list">
+              <p class="empty-state">Nenhuma notificação nova.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- PROFILE BADGE -->
+        <div class="user-badge-container">
+          <div class="user-info">
+            <span id="user-display-name" class="user-name">Usuário</span>
+            <span id="user-display-role" class="user-role">role</span>
+          </div>
+          <button class="btn btn-outline-danger btn-sm" onclick="logout()">Sair</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- CONTEÚDO DA VIEW DE TICKETS -->
+    <main id="view-tickets" class="main-content">
+      <!-- DASHBOARD CARDS METRICAS -->
+      <section class="metrics-grid" id="metrics-bar">
+        <div class="metric-card">
+          <span class="metric-val" id="metric-total">0</span>
+          <span class="metric-lbl">Total de Tickets</span>
+        </div>
+        <div class="metric-card warning">
+          <span class="metric-val" id="metric-open">0</span>
+          <span class="metric-lbl">Abertos</span>
+        </div>
+        <div class="metric-card info">
+          <span class="metric-val" id="metric-progress">0</span>
+          <span class="metric-lbl">Em Andamento</span>
+        </div>
+        <div class="metric-card success">
+          <span class="metric-val" id="metric-resolved">0</span>
+          <span class="metric-lbl">Resolvidos / Fechados</span>
+        </div>
+      </section>
+
+      <!-- BARRA DE FILTROS E AÇÕES -->
+      <section class="controls-bar">
+        <div class="filters-group">
+          <input type="text" id="filter-search" placeholder="🔍 Buscar por número, título ou cliente..." oninput="loadTickets()">
+          <select id="filter-status" onchange="loadTickets()">
+            <option value="">Todos os Status</option>
+            <option value="aberto">Aberto</option>
+            <option value="em_andamento">Em Andamento</option>
+            <option value="resolvido">Resolvido</option>
+            <option value="fechado">Fechado</option>
+          </select>
+          <select id="filter-category" onchange="loadTickets()">
+            <option value="">Todas as Categorias</option>
+            <option value="Hardware">Hardware</option>
+            <option value="Software">Software</option>
+            <option value="Rede">Rede</option>
+            <option value="Acesso">Acesso / Senha</option>
+            <option value="Outros">Outros</option>
+          </select>
+          <select id="filter-priority" onchange="loadTickets()">
+            <option value="">Todas as Prioridades</option>
+            <option value="baixa">Baixa</option>
+            <option value="media">Média</option>
+            <option value="alta">Alta</option>
+            <option value="critica">Crítica</option>
+          </select>
+        </div>
+
+        <button class="btn btn-primary" onclick="openNewTicketModal()">➕ Novo Ticket</button>
+      </section>
+
+      <!-- TABELA DE TICKETS -->
+      <section class="table-container">
+        <table class="tickets-table">
+          <thead>
+            <tr>
+              <th># Ticket</th>
+              <th>Título</th>
+              <th>Cliente</th>
+              <th>Categoria</th>
+              <th>Prioridade</th>
+              <th>Status</th>
+              <th>Técnico Responsável</th>
+              <th>Data</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tickets-tbody">
+            <tr><td colspan="9" class="text-center">Carregando tickets...</td></tr>
+          </tbody>
+        </table>
+      </section>
+    </main>
+
+    <!-- CONTEÚDO DA VIEW DE RELATÓRIOS (TECNICO / ADMIN) -->
+    <main id="view-reports" class="main-content hidden">
+      <h2>📊 Relatórios e Indicadores de Atendimento</h2>
+      <div class="reports-grid">
+        <div class="report-card">
+          <h3>Tempo Médio de Atendimento</h3>
+          <div class="big-stat" id="report-avg-time">0h</div>
+          <small>Criação até o encerramento do chamado</small>
+        </div>
+        <div class="report-card">
+          <h3>Tickets por Categoria</h3>
+          <div id="chart-categories" class="css-chart-container"></div>
+        </div>
+        <div class="report-card">
+          <h3>Tickets por Prioridade</h3>
+          <div id="chart-priorities" class="css-chart-container"></div>
+        </div>
+      </div>
+
+      <h3 class="margin-top-lg">Desempenho por Atendente</h3>
+      <div class="table-container margin-top-sm">
+        <table class="tickets-table">
+          <thead>
+            <tr>
+              <th>Técnico</th>
+              <th>E-mail</th>
+              <th>Atribuídos</th>
+              <th>Resolvidos</th>
+              <th>Tempo Médio</th>
+              <th>Nota Média (1-5)</th>
+            </tr>
+          </thead>
+          <tbody id="tech-perf-tbody">
+            <tr><td colspan="6" class="text-center">Carregando métricas...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
+
+    <!-- CONTEÚDO DA VIEW DE GESTÃO DE USUÁRIOS (ADMIN) -->
+    <main id="view-users" class="main-content hidden">
+      <h2>👥 Gestão de Usuários</h2>
+      <div class="users-grid">
+        <div class="card-box">
+          <h3>Cadastrar Novo Usuário</h3>
+          <form id="create-user-form">
+            <div class="form-group">
+              <label>Nome Completo</label>
+              <input type="text" id="new-user-name" required placeholder="Nome do usuário">
+            </div>
+            <div class="form-group">
+              <label>E-mail</label>
+              <input type="email" id="new-user-email" required placeholder="usuario@email.com">
+            </div>
+            <div class="form-group">
+              <label>Senha</label>
+              <input type="password" id="new-user-password" required placeholder="••••••••">
+            </div>
+            <div class="form-group">
+              <label>Perfil (Função)</label>
+              <select id="new-user-role">
+                <option value="cliente">Cliente</option>
+                <option value="tecnico">Técnico</option>
+                <option value="admin">Administrador</option>
+              </select>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Salvar Usuário</button>
+          </form>
+        </div>
+
+        <div class="card-box flex-grow">
+          <h3>Lista de Usuários Cadastrados</h3>
+          <div class="table-container">
+            <table class="tickets-table">
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>E-mail</th>
+                  <th>Função Atual</th>
+                  <th>Alterar Função</th>
+                </tr>
+              </thead>
+              <tbody id="users-tbody">
+                <tr><td colspan="4" class="text-center">Carregando usuários...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- MODAL: NOVO TICKET -->
+  <div id="modal-new-ticket" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>➕ Abrir Novo Ticket</h3>
+        <button class="close-btn" onclick="closeModal('modal-new-ticket')">&times;</button>
+      </div>
+      <form id="new-ticket-form">
+        <div class="form-group">
+          <label for="ticket-title">Título do Chamado *</label>
+          <input type="text" id="ticket-title" required placeholder="Ex: Impressora não responde no setor fiscal">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="ticket-category">Categoria *</label>
+            <select id="ticket-category" required>
+              <option value="Hardware">Hardware</option>
+              <option value="Software">Software</option>
+              <option value="Rede">Rede / Internet</option>
+              <option value="Acesso">Acesso / Senhas</option>
+              <option value="Outros">Outros</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="ticket-priority">Prioridade *</label>
+            <select id="ticket-priority" required>
+              <option value="baixa">Baixa</option>
+              <option value="media" selected>Média</option>
+              <option value="alta">Alta</option>
+              <option value="critica">Crítica</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="ticket-desc">Descrição Detalhada do Problema *</label>
+          <textarea id="ticket-desc" rows="4" required placeholder="Descreva o problema com o máximo de detalhes possível..."></textarea>
+        </div>
+        <div class="form-group">
+          <label for="ticket-file">Anexo Opcional (Imagem/Arquivo)</label>
+          <input type="file" id="ticket-file">
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-new-ticket')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Abrir Ticket</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: DETALHES E INTERAÇÃO COM O TICKET -->
+  <div id="modal-ticket-detail" class="modal-backdrop hidden">
+    <div class="modal-card modal-large">
+      <div class="modal-header">
+        <div>
+          <span id="detail-ticket-number" class="ticket-tag">#1001</span>
+          <h3 id="detail-ticket-title" class="inline-title">Título do Ticket</h3>
+        </div>
+        <button class="close-btn" onclick="closeModal('modal-ticket-detail')">&times;</button>
+      </div>
+
+      <div class="modal-body modal-grid">
+        <!-- COLUNA ESQUERDA: INFOS & ACOES -->
+        <div class="detail-left">
+          <div class="detail-info-box">
+            <div class="info-row"><span class="info-label">Status:</span> <span id="detail-ticket-status"></span></div>
+            <div class="info-row"><span class="info-label">Prioridade:</span> <span id="detail-ticket-priority"></span></div>
+            <div class="info-row"><span class="info-label">Categoria:</span> <span id="detail-ticket-category"></span></div>
+            <div class="info-row"><span class="info-label">Cliente:</span> <span id="detail-ticket-client"></span></div>
+            <div class="info-row"><span class="info-label">Técnico Responsável:</span> <span id="detail-ticket-tech"></span></div>
+            <div class="info-row"><span class="info-label">Criado em:</span> <span id="detail-ticket-date"></span></div>
+          </div>
+
+          <!-- PAINEL DE DESCRIÇÃO -->
+          <div class="card-box">
+            <h4>Descrição</h4>
+            <p id="detail-ticket-desc" class="desc-text"></p>
+            <div id="detail-ticket-attachment" class="attachment-box hidden"></div>
+          </div>
+
+          <!-- SOLUÇÃO SE ENCERRADO -->
+          <div id="solution-box" class="card-box success-box hidden">
+            <h4>✅ Solução Aplicada</h4>
+            <p id="detail-solution-text"></p>
+          </div>
+
+          <!-- AVALIAÇÃO DO CLIENTE SE EXISTIR -->
+          <div id="rating-box" class="card-box info-box hidden">
+            <h4>⭐ Avaliação do Atendimento</h4>
+            <p id="detail-rating-stars"></p>
+            <p id="detail-rating-comment" class="italic-text"></p>
+          </div>
+
+          <!-- PAINEL DE AÇÕES DE ACORDO COM PERFIL E STATUS -->
+          <div class="card-box actions-panel" id="actions-panel">
+            <h4>Ações do Atendimento</h4>
+
+            <!-- ATRIBUIR TÉCNICO (ADMIN/TECNICO) -->
+            <div id="action-assign" class="action-block hidden">
+              <label>Designar Técnico:</label>
+              <div class="flex-row gap-sm">
+                <select id="assign-tech-select"></select>
+                <button class="btn btn-secondary btn-sm" onclick="submitAssignTech()">Atribuir</button>
+              </div>
+            </div>
+
+            <!-- ALTERAR STATUS (ADMIN/TECNICO) -->
+            <div id="action-status" class="action-block hidden margin-top-sm">
+              <label>Alterar Status:</label>
+              <div class="flex-row gap-sm">
+                <select id="status-select">
+                  <option value="aberto">Aberto</option>
+                  <option value="em_andamento">Em Andamento</option>
+                  <option value="resolvido">Resolvido</option>
+                  <option value="fechado">Fechado</option>
+                </select>
+                <button class="btn btn-secondary btn-sm" onclick="submitStatusChange()">Atualizar</button>
+              </div>
+            </div>
+
+            <!-- ENCERRAR COM SOLUÇÃO (ADMIN/TECNICO) -->
+            <div id="action-close" class="action-block hidden margin-top-sm">
+              <label>Encerrar e Registrar Solução:</label>
+              <textarea id="close-solution-text" rows="2" placeholder="Descreva a solução aplicada ao cliente..."></textarea>
+              <button class="btn btn-success btn-sm margin-top-xs" onclick="submitCloseTicket()">Encerrar Chamado</button>
+            </div>
+
+            <!-- REABRIR (CLIENTE/TECNICO/ADMIN) -->
+            <div id="action-reopen" class="action-block hidden margin-top-sm">
+              <button class="btn btn-warning btn-block" onclick="submitReopenTicket()">🔄 Reabrir Chamado</button>
+            </div>
+
+            <!-- AVALIAR (CLIENTE QUANDO FECHADO) -->
+            <div id="action-rate" class="action-block hidden margin-top-sm">
+              <label>Avaliar Atendimento (1 a 5 estrelas):</label>
+              <select id="rate-select">
+                <option value="5">⭐⭐⭐⭐⭐ 5 - Excelente</option>
+                <option value="4">⭐⭐⭐⭐ 4 - Muito Bom</option>
+                <option value="3">⭐⭐⭐ 3 - Regular</option>
+                <option value="2">⭐⭐ 2 - Ruim</option>
+                <option value="1">⭐ 1 - Péssimo</option>
+              </select>
+              <textarea id="rate-comment" rows="2" placeholder="Comentário sobre o atendimento (opcional)..." class="margin-top-xs"></textarea>
+              <button class="btn btn-primary btn-sm margin-top-xs" onclick="submitRateTicket()">Enviar Avaliação</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- COLUNA DIREITA: COMENTÁRIOS E HISTÓRICO -->
+        <div class="detail-right">
+          <!-- TABS INTERNAS DE DETALHES -->
+          <div class="inner-tabs">
+            <button id="tab-comments-btn" class="active" onclick="switchDetailTab('comments')">Comentários</button>
+            <button id="tab-history-btn" onclick="switchDetailTab('history')">Histórico de Alterações</button>
+          </div>
+
+          <!-- SEÇÃO COMENTÁRIOS -->
+          <div id="detail-tab-comments" class="detail-tab-pane">
+            <div id="comments-list" class="comments-feed">
+              <p class="empty-state">Sem comentários até o momento.</p>
+            </div>
+
+            <form id="add-comment-form" class="margin-top-sm">
+              <textarea id="comment-text" rows="2" required placeholder="Digite uma resposta ou comentário..."></textarea>
+              <button type="submit" class="btn btn-primary btn-sm margin-top-xs btn-block">Enviar Comentário</button>
+            </form>
+          </div>
+
+          <!-- SEÇÃO HISTÓRICO -->
+          <div id="detail-tab-history" class="detail-tab-pane hidden">
+            <div id="history-list" class="history-timeline">
+              <p class="empty-state">Nenhum registro de histórico.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST CONTAINER -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+# Dependências
+node_modules/
+
+# Dados e Banco de Dados (JSON / SQLite / backups)
+data/
+*.sqlite
+*.sqlite3
+*.db
+*.json.bak
+
+# Segredos e Variáveis de Ambiente
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Sistema / IDEs
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
